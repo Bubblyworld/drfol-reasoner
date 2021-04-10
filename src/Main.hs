@@ -1,13 +1,14 @@
 module Main where
 
+import           Language
 import           Parser
 
 testParser :: String -> IO ()
 testParser input = do
   putStrLn $ "Testing: " ++ input
   case parse input of
-    Left err  -> putStrLn $ "Parser Error: " ++ show err
-    Right cmp -> putStrLn $ "Parser Success: " ++ show cmp
+    Left err   -> putStrLn $ "Parser Error: " ++ show err
+    Right prog -> putStrLn $ "Parser Success: " ++ show (constants prog) ++ ", " ++ show (variables prog)
   putStrLn ""
 
 main :: IO ()
