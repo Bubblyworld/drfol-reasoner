@@ -7,8 +7,8 @@ testParser :: String -> IO ()
 testParser input = do
   putStrLn $ "Testing: " ++ input
   case parse input of
-    Left err   -> putStrLn $ "Parser Error: " ++ show err
-    Right p -> putStrLn $ "Parser Success: " ++ show (validate p)
+    Left err -> putStrLn $ "Parser Error: " ++ show err
+    Right p  -> putStrLn $ "Parser Success: " ++ show (validate p)
   putStrLn ""
 
 main :: IO ()

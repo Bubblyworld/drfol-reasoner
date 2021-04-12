@@ -96,7 +96,12 @@ data ValidationError = AmbiguousArity Label
                      | UnsafeRule Expression
                        deriving (Show)
 
--- util functions for working with programs
+  {-
+     Program validation - DRFOL programs are not allowed to define predicates
+     that have ambiguous arities, and all classical or defeasible rules are
+     required to be safe. This last requirement is to ensure that satisfaction
+     for materialised knowledge bases is decidable (TODO: check this).
+     -}
 validate :: Program -> Maybe ValidationError
 validate p =
   case validateArities p >> validateSafety p of
@@ -121,19 +126,28 @@ validateSafety = mapM_ checkSafety . expressions
                             then Right ()
                             else Left $ UnsafeRule e
 
+  {-
+     Utilities for manipulating and extracting data from programs.
+     -}
+
+-- expressions returns the list of expressions in the given program.
 expressions :: Program -> [Expression]
 expressions (Program es) = es
 
+-- compounds returns the list of compounds used in the given program.
 compounds :: Program -> [Compound]
 compounds = foldMap $ foldMap wrap
 
+-- terms returns the list of terms used in the given program.
 terms :: Program -> [Term]
 terms = foldMap $ foldMap (foldMap wrap)
 
+-- label returns the label of the given term.
 label :: Term -> Label
 label (Variable l) = l
 label (Constant l) = l
 
+-- variables returns the list of variable labels used in the given program.
 variables :: Program -> [Label]
 variables =
   let onlyvars t =
@@ -142,6 +156,7 @@ variables =
           _          -> False
   in rmdups . fmap label . filter onlyvars . terms
 
+-- constants returns the list of constant labels used in the given program.
 constants :: Program -> [Label]
 constants =
   let onlyconsts t =
@@ -150,6 +165,7 @@ constants =
           _          -> False
   in rmdups . fmap label . filter onlyconsts . terms
 
+-- predicates returns a map from predicate labels to arities for the given program.
 predicates :: Program -> Map Label [Term]
 predicates =
   let mapAtoms c =
@@ -158,8 +174,14 @@ predicates =
           _         -> empty
   in foldMap mapAtoms . compounds
 
+  {-
+     Generic utilities for generic types.
+     -}
+
+-- rmdups sorts and removes all duplicate values from the given list.
 rmdups :: (Ord a) => [a] -> [a]
 rmdups = fmap head . group . sort
 
+-- wrap creates a singleton list out of the given value.
 wrap :: a -> [a]
 wrap x = [x]
