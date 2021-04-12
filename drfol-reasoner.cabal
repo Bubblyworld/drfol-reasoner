@@ -18,4 +18,4 @@ executable drfol-reasoner
   main-is:             Main.hs
   other-modules:       Parser, Language, Reasoner
   default-language:    Haskell2010
-  build-depends:       base >= 4.7 && < 5, parsec >= 3.1, extra, containers
+  build-depends:       base >= 4.7 && < 5, parsec >= 3.1, extra, containers, data-ordlist

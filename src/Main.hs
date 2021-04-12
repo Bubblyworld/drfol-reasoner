@@ -8,7 +8,7 @@ testParser input = do
   putStrLn $ "Testing: " ++ input
   case parse input of
     Left err   -> putStrLn $ "Parser Error: " ++ show err
-    Right prog -> putStrLn $ "Parser Success: " ++ show (constants prog) ++ ", " ++ show (variables prog)
+    Right p -> putStrLn $ "Parser Success: " ++ show (validate p)
   putStrLn ""
 
 main :: IO ()
@@ -21,5 +21,5 @@ main = do
   testParser "a(X,c)->b(Y,Z)"
   testParser "a(X,c)~>b(Y,Z)"
   testParser "a(X,c)~>b(y,a,g)\n\
-             \b(a,b,c)->z(A,B)\n\
+             \b(a,b,c,d)->z(A,B)\n\
              \a(X,c)"

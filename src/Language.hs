@@ -1,6 +1,8 @@
 module Language where
 
-import           Data.List (group, sort)
+import           Data.List         (group, sort)
+import           Data.List.Ordered (subset)
+import           Data.Map          hiding (filter)
 
 -- Labels represent unique identifiers for a atom, constant or variable.
 newtype Label = Label String deriving (Eq, Ord)
@@ -51,8 +53,8 @@ instance Foldable (GenCompound l) where
 
 type Compound = GenCompound Label Term
 
--- Expressions represent facts, rules and defeasible rules.
-data (GenExpression c) = Fact c
+-- Expressions represent facts, rules and defeasible rules. Logically,
+data GenExpression c = Fact c
                 | ClassicalRule c c
                 | DefeasibleRule c c
 
@@ -92,24 +94,72 @@ type Program = GenProgram Expression
 -- predicates with ambiguous arity, or unsafe rules (potentially).
 data ValidationError = AmbiguousArity Label
                      | UnsafeRule Expression
+                       deriving (Show)
 
 -- util functions for working with programs
 validate :: Program -> Maybe ValidationError
-validate = undefined
+validate p =
+  case validateArities p >> validateSafety p of
+    Left err -> Just err
+    _        -> Nothing
+
+validateArities :: Program -> Either ValidationError ()
+validateArities p = mapM_ (checkArity $ predicates p) . compounds $ p
+  where
+    checkArity m (Atom l ts) = if length (m ! l) == length ts
+                                  then Right ()
+                                  else Left $ AmbiguousArity l
+    checkArity m _ = Right ()
+
+validateSafety :: Program -> Either ValidationError ()
+validateSafety = mapM_ checkSafety . expressions
+  where
+    checkSafety (Fact _)                   = Right ()
+    checkSafety e @ (ClassicalRule cl cr)  = _checkSafety e cl cr
+    checkSafety e @ (DefeasibleRule cl cr) = _checkSafety e cl cr
+    _checkSafety e cl cr = if foldMap (wrap . label) cr `subset` foldMap (wrap .label) cl
+                            then Right ()
+                            else Left $ UnsafeRule e
+
+expressions :: Program -> [Expression]
+expressions (Program es) = es
+
+compounds :: Program -> [Compound]
+compounds = foldMap $ foldMap wrap
+
+terms :: Program -> [Term]
+terms = foldMap $ foldMap (foldMap wrap)
+
+label :: Term -> Label
+label (Variable l) = l
+label (Constant l) = l
 
 variables :: Program -> [Label]
-variables = rmdups . foldMap (foldMap $ foldMap onlyvar)
-  where
-    onlyvar :: Term -> [Label]
-    onlyvar (Variable l) = [l]
-    onlyvar (Constant l) = []
+variables =
+  let onlyvars t =
+        case t of
+          Variable l -> True
+          _          -> False
+  in rmdups . fmap label . filter onlyvars . terms
 
 constants :: Program -> [Label]
-constants = rmdups . foldMap (foldMap $ foldMap onlyconst)
-  where
-    onlyconst :: Term -> [Label]
-    onlyconst (Variable l) = []
-    onlyconst (Constant l) = [l]
+constants =
+  let onlyconsts t =
+        case t of
+          Constant l -> True
+          _          -> False
+  in rmdups . fmap label . filter onlyconsts . terms
+
+predicates :: Program -> Map Label [Term]
+predicates =
+  let mapAtoms c =
+        case c of
+          Atom l ts -> singleton l ts
+          _         -> empty
+  in foldMap mapAtoms . compounds
 
 rmdups :: (Ord a) => [a] -> [a]
-rmdups = map head . group . sort
+rmdups = fmap head . group . sort
+
+wrap :: a -> [a]
+wrap x = [x]
