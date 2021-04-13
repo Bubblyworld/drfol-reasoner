@@ -2,13 +2,13 @@ module Reasoner where
 
 import           Control.Monad (foldM, join, (<=<))
 import           Data.Functor  ((<&>))
-import           Data.Map      hiding (null)
+import           Data.Map      hiding (filter, null)
 import           Language
 import           Z3.Monad
 
   {-
      Functions for reasoning classically and/or defeasibly over a DRFOL
-     program. Since the Z3 reasoner has side effects, all reasoning runs 
+     program. Since the Z3 reasoner has side effects, all reasoning runs
      in the IO monad.
      -}
 
@@ -28,10 +28,48 @@ classicallyEntails program expr =
       _     -> return False
 
 -- rankExpressions runs the rational closure ranking algorithm on the given
--- expressions to rank them according to typicality. The lower the rank, the
--- more typical the expression is considered with respect to the given program.
-rankExpressions :: Program -> [Expression] -> IO [[Expression]]
-rankExpressions prog exprs = undefined
+-- compounds to rank them according to typicality. The lower the rank, the
+-- more typical it is considered to be with respect to the given program. The
+-- result contains rankings for compounds that occur in the program as well.
+rankExpressions :: Program -> [Compound] -> IO (Map Compound Int)
+rankExpressions = rankExpressions' 0
+
+rankExpressions' :: Int -> Program -> [Compound] -> IO (Map Compound Int)
+rankExpressions' _ (Program []) [] = return empty
+rankExpressions' i prog comps =
+  do
+    -- ensure all compounds in the program are in the compounds list.
+    let comps' = rmdups $ comps ++ compounds prog
+
+    exceptions <- mapExceptional prog comps'
+    let typicalComps = filter (not . (!) exceptions) comps'
+    let exceptionalComps = filter (exceptions !) comps'
+    let exceptionalExprs =
+          let takeExpr (Fact _)                = True
+              takeExpr (ClassicalRule _ _)     = True
+              takeExpr (DefeasibleRule comp _) = exceptions ! comp
+           in filter takeExpr $ expressions prog
+
+    base <- foldM (\m c -> return $ insert c i m) empty typicalComps
+    if null typicalComps || null exceptionalComps
+       then return base -- TODO: mark remaining compounds infinite rank
+       else do
+         rest <- rankExpressions' (i + 1) (Program exceptionalExprs) exceptionalComps
+         return $ union base rest
+
+-- mapExceptional returns a map describing which of the given compounds
+-- are exceptional (i.e. have no inhabitants) with respect to the given
+-- program.
+mapExceptional :: Program -> [Compound] -> IO (Map Compound Bool)
+mapExceptional prog =
+  let insertComp res comp = isExceptional prog comp <&> flip (insert comp) res
+   in foldM insertComp empty
+
+-- isExceptional returns true if the given compound is exceptional with
+-- respect to the given program, i.e. if the program entails that the
+-- compound has no typical instances.
+isExceptional :: Program -> Compound -> IO Bool
+isExceptional prog comp = classicallyEntails prog $ DefeasibleRule comp Bot
 
   {-
      Utilities for converting DRFOL programs into Z3 theories.
@@ -89,13 +127,6 @@ declareCompound sort smap (Disjunction compl compr) =
 declareCompound sort smap (Negation comp) =
   mkNot =<< declareCompound sort smap comp
 
--- mkTypicalityFunc is the monadic predicate used to represent typicality.
-mkTypicalityFunc :: Sort -> Z3 FuncDecl
-mkTypicalityFunc sort = do
-  boolSort <- mkBoolSort
-  funcSym <- mkStringSymbol "__typ__"
-  mkFuncDecl funcSym [sort] boolSort
-
 -- declareTypicality constructs a formula declaring that the variables in
 -- the given compound are typical. This is represented by a conjunction of
 -- monadic typicality atoms, one for each variable.
@@ -136,3 +167,10 @@ declareExpression sort smap expr@(DefeasibleRule compl compr) =
     if null apps
        then mkImplies cdecll cdeclr
        else mkForallConst [] apps =<< flip mkImplies cdeclr =<< mkAnd [tdecl, cdecll]
+
+-- mkTypicalityFunc is the monadic predicate used to represent typicality.
+mkTypicalityFunc :: Sort -> Z3 FuncDecl
+mkTypicalityFunc sort = do
+  boolSort <- mkBoolSort
+  funcSym <- mkStringSymbol "__typ__"
+  mkFuncDecl funcSym [sort] boolSort

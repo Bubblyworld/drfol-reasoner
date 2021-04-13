@@ -48,6 +48,7 @@ instance (Show l, Show t) => Show (GenCompound l t) where
   show (Negation c) = "!" ++ show c
   show (Conjunction cl cr) = "(" ++ show cl ++ "/\\" ++ show cr ++ ")"
   show (Disjunction cl cr) = "(" ++ show cl ++ "\\/" ++ show cr ++ ")"
+  show (Atom l []) = show l
   show (Atom l ts) = show l ++ "(" ++ joinStr ts ++ ")"
     where joinStr []     = ""
           joinStr [t]    = show t
@@ -208,15 +209,6 @@ validateSafety = mapM_ checkSafety . expressions
   {-
      Utilities for manipulating and extracting data from programs.
      -}
-
--- materialise returns the materialisation of the given program, in which
--- all defeasible rules A(x) ~> B(y) are replaced with their classical
--- counterparts A(X) -> B(y).
-materialise :: Program -> Program
-materialise =
-  let _materialise (DefeasibleRule cl cr) = ClassicalRule cl cr
-      _materialise e                      = e
-   in fmap _materialise
 
 -- expressions returns the list of expressions in the given program.
 expressions :: Program -> [Expression]

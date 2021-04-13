@@ -32,7 +32,10 @@ testEntailment progStr exprStr =
             return (prog, expr)
     case parsed of
       Left err           -> putStrLn $ "Parser error: " ++ show err
-      Right (prog, expr) -> print =<< classicallyEntails prog expr
+      Right (prog, expr) ->
+        do
+          print =<< classicallyEntails prog expr
+          print =<< rankExpressions prog []
 
 main :: IO ()
 main =
