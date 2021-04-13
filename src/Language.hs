@@ -27,6 +27,12 @@ instance (Eq l) => Eq (GenTerm l) where
   Variable l1 == Variable l2 = l1 == l2
   _ == _                     = False
 
+instance (Ord l) => Ord (GenTerm l) where
+  Constant l1 <= Constant l2 = l1 <= l2
+  Constant l1 <= Variable _  = True
+  Variable l1 <= Variable l2 = l1 <= l2
+  Variable l1 <= _           = False
+
 type Term = GenTerm Label
 
 -- Compounds represent boolean combination of atoms.
@@ -72,6 +78,38 @@ instance (Eq l, Eq t) => Eq (GenCompound l t) where
   Disjunction cl1 cr1 == Disjunction cl2 cr2 = (cl1 == cl2) && (cr1 == cr2)
   _ == _                                     = False
 
+instance (Ord l, Ord t) => Ord (GenCompound l t) where
+  Top <= _   = True
+  Bot <= Top = False
+  Bot <= _   = True
+  Atom l1 ts1 <= Top = False
+  Atom l1 ts1 <= Bot = False
+  Atom l1 ts1 <= Atom l2 ts2 = if l1 == l2
+                                  then ts1 <= ts2
+                                  else l1 <= l2
+  Atom l1 ts1 <= _ = True
+  Negation c1 <= Top = False
+  Negation c1 <= Bot = False
+  Negation c1 <= Atom _ _ = False
+  Negation c1 <= Negation c2 = c1 <= c2
+  Negation c1 <= _ = True
+  Conjunction cl1 cr1 <= Top = False
+  Conjunction cl1 cr1 <= Bot = False
+  Conjunction cl1 cr1 <= Atom _ _ = False
+  Conjunction cl1 cr1 <= Negation _ = False
+  Conjunction cl1 cr1 <= Conjunction cl2 cr2 = if cl1 == cl2
+                                                  then cr1 <= cr2
+                                                  else cl1 <= cl2
+  Conjunction cl1 cr1 <= _ = True
+  Disjunction cl1 cr1 <= Top = False
+  Disjunction cl1 cr1 <= Bot = False
+  Disjunction cl1 cr1 <= Atom _ _ = False
+  Disjunction cl1 cr1 <= Negation _ = False
+  Disjunction cl1 cr1 <= Conjunction _ _ = False
+  Disjunction cl1 cr1 <= Disjunction cl2 cr2 = if cl1 == cl2
+                                                  then cr1 <= cr2
+                                                  else cl1 <= cl2
+
 type Compound = GenCompound Label Term
 
 -- Expressions represent facts, rules and defeasible rules.
@@ -99,6 +137,20 @@ instance (Eq c) => Eq (GenExpression c) where
   ClassicalRule cl1 cr1 == ClassicalRule cl2 cr2 = (cl1 == cl2) && (cr1 == cr2)
   DefeasibleRule cl1 cr1 == DefeasibleRule cl2 cr2 = (cl1 == cl2) && (cr1 == cr2)
   _ == _ = False
+
+instance (Ord c) => Ord (GenExpression c) where
+  Fact c1 <= Fact c2 = c1 <= c2
+  Fact c1 <= _ = True
+  ClassicalRule cl1 cr1 <= Fact _ = False
+  ClassicalRule cl1 cr1 <= ClassicalRule cl2 cr2 = if cl1 == cl2
+                                                       then cr1 <= cr2
+                                                       else cl1 <= cl2
+  ClassicalRule cl1 cr1 <= _ = True
+  DefeasibleRule cl1 cr1 <= Fact _ = False
+  DefeasibleRule cl1 cr1 <= ClassicalRule _ _ = False
+  DefeasibleRule cl1 cr1 <= DefeasibleRule cl2 cr2 = if cl1 == cl2
+                                                        then cr1 <= cr2
+                                                        else cl1 <= cl2
 
 type Expression = GenExpression Compound
 
