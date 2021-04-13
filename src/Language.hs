@@ -22,6 +22,11 @@ instance Functor GenTerm where
   fmap f (Constant l) = Constant (f l)
   fmap f (Variable l) = Variable (f l)
 
+instance (Eq l) => Eq (GenTerm l) where
+  Constant l1 == Constant l2 = l1 == l2
+  Variable l1 == Variable l2 = l1 == l2
+  _ == _                     = False
+
 type Term = GenTerm Label
 
 -- Compounds represent boolean combination of atoms.
@@ -58,9 +63,18 @@ instance Foldable (GenCompound l) where
   foldMap f (Conjunction cl cr) = mappend (foldMap f cl) (foldMap f cr)
   foldMap f (Disjunction cl cr) = mappend (foldMap f cl) (foldMap f cr)
 
+instance (Eq l, Eq t) => Eq (GenCompound l t) where
+  Top == Top                                 = True
+  Bot == Bot                                 = True
+  Atom l1 ts1 == Atom l2 ts2                 = (l1 == l2) && (ts1 == ts2)
+  Negation c1 == Negation c2                 = c1 == c2
+  Conjunction cl1 cr1 == Conjunction cl2 cr2 = (cl1 == cl2) && (cr1 == cr2)
+  Disjunction cl1 cr1 == Disjunction cl2 cr2 = (cl1 == cl2) && (cr1 == cr2)
+  _ == _                                     = False
+
 type Compound = GenCompound Label Term
 
--- Expressions represent facts, rules and defeasible rules. Logically,
+-- Expressions represent facts, rules and defeasible rules.
 data GenExpression c = Fact c
                      | ClassicalRule c c
                      | DefeasibleRule c c
@@ -79,6 +93,12 @@ instance Foldable GenExpression where
   foldMap f (Fact c)               = f c
   foldMap f (ClassicalRule cl cr)  = mappend (f cl) (f cr)
   foldMap f (DefeasibleRule cl cr) = mappend (f cl) (f cr)
+
+instance (Eq c) => Eq (GenExpression c) where
+  Fact c1 == Fact c2 = c1 == c2
+  ClassicalRule cl1 cr1 == ClassicalRule cl2 cr2 = (cl1 == cl2) && (cr1 == cr2)
+  DefeasibleRule cl1 cr1 == DefeasibleRule cl2 cr2 = (cl1 == cl2) && (cr1 == cr2)
+  _ == _ = False
 
 type Expression = GenExpression Compound
 

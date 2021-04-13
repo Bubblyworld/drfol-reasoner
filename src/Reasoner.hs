@@ -7,6 +7,33 @@ import           Language
 import           Z3.Monad
 
   {-
+     Functions for reasoning classically and/or defeasibly over a DRFOL
+     program. Since the Z3 reasoner has side effects, all reasoning runs 
+     in the IO monad.
+     -}
+
+-- classicallyEntails returns true if the given program entails the given
+-- expression classically.
+classicallyEntails :: Program -> Expression -> IO Bool
+classicallyEntails program expr =
+  do
+    res <- evalZ3 $ do
+      unsort <- mkStringSymbol "drfol" >>= mkUninterpretedSort
+      smap <- declareTerms unsort program
+      mapM_ (assert <=< declareExpression unsort smap) $ expressions program
+      assert =<< mkNot =<< declareExpression unsort smap expr
+      check
+    case res of
+      Unsat -> return True -- prog ^ !expr is unsatisfiable iff prog => exprProgram
+      _     -> return False
+
+-- rankExpressions runs the rational closure ranking algorithm on the given
+-- expressions to rank them according to typicality. The lower the rank, the
+-- more typical the expression is considered with respect to the given program.
+rankExpressions :: Program -> [Expression] -> IO [[Expression]]
+rankExpressions prog exprs = undefined
+
+  {-
      Utilities for converting DRFOL programs into Z3 theories.
      Examples usings the Haskell Z3 bindings can be found here:
        https://github.com/IagoAbal/haskell-z3/tree/master/examples/Example/Monad
@@ -109,24 +136,3 @@ declareExpression sort smap expr@(DefeasibleRule compl compr) =
     if null apps
        then mkImplies cdecll cdeclr
        else mkForallConst [] apps =<< flip mkImplies cdeclr =<< mkAnd [tdecl, cdecll]
-
-  {-
-     Since running
-     Z3 typically involves caching and other side effects, the reasoner runs
-     in the IO monad.
-     -}
-
--- classicallyEntails returns true if the given program entails the given
--- expression classically.
-classicallyEntails :: Program -> Expression -> IO Bool
-classicallyEntails program expr =
-  do
-    res <- evalZ3 $ do
-      unsort <- mkStringSymbol "drfol" >>= mkUninterpretedSort
-      smap <- declareTerms unsort program
-      mapM_ (assert <=< declareExpression unsort smap) $ expressions program
-      assert =<< mkNot =<< declareExpression unsort smap expr
-      check
-    case res of
-      Unsat -> return True -- prog ^ !expr is unsatisfiable iff prog => exprProgram
-      _     -> return False
