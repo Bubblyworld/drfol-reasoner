@@ -28,17 +28,29 @@ instance Ord Rank where
 -- classicallyEntails returns true if the given program entails the given
 -- expression classically.
 classicallyEntails :: Program -> Expression -> IO Bool
-classicallyEntails program expr =
+classicallyEntails prog expr =
   do
     res <- evalZ3 $ do
       unsort <- mkStringSymbol "drfol" >>= mkUninterpretedSort
-      smap <- declareTerms unsort program
-      mapM_ (assert <=< declareExpression unsort smap) $ expressions program
+      smap <- declareTerms unsort prog
+      mapM_ (assert <=< declareExpression unsort smap) $ expressions prog
       assert =<< mkNot =<< declareExpression unsort smap expr
       check
     case res of
       Unsat -> return True -- prog ^ !expr is unsatisfiable iff prog => exprProgram
       _     -> return False
+
+-- rationallyEntails returns true if the rational closure of the given
+-- program contains the given expression.
+rationallyEntails :: Program -> Expression -> IO Bool
+rationallyEntails prog expr@(Fact _) = classicallyEntails prog expr
+rationallyEntails prog expr@(ClassicalRule _ _) = classicallyEntails prog expr
+rationallyEntails prog (DefeasibleRule compl compr) =
+  do
+    let cpos = Conjunction compl compr
+        cneg = Conjunction compl (Negation compr)
+    ranks <- rankExpressions prog [cpos, cneg]
+    return $ (ranks ! cpos == Infinity) || (ranks ! cpos) < (ranks ! cneg)
 
 -- rankExpressions runs the rational closure ranking algorithm on the given
 -- compounds to rank them according to typicality. The lower the rank, the

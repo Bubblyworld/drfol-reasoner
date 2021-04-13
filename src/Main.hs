@@ -38,11 +38,17 @@ testEntailment progStr exprStr =
       Left err           -> putStrLn $ "Parser error: " ++ show err
       Right (prog, expr) ->
         do
-          print =<< classicallyEntails prog expr
-          print =<< rankExpressions prog []
+          putStrLn "{"
+          putStrLn "  Program:"
+          print prog
+          putStrLn "  Expression:"
+          print expr
+
+          entailed <- rationallyEntails prog expr
+          putStrLn $ "\n  In Rational Closure: " ++ show entailed
+          putStrLn "}"
 
 main :: IO ()
 main =
   do
-    testEntailment hardTest "a(X)~>'F"
-    testEntailment hardTest "a(X)->'F"
+    testEntailment workerTest "w(X)/\\hs(X,Y)~>r(Y)"
