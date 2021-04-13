@@ -38,6 +38,6 @@ main :: IO ()
 main =
   do
     testEntailment tweetyTest "f(tweety)"
-    testEntailment workerTest "b(X)->!hs(X,Y)"
-    testEntailment workerTest "w(X)/\\hs(X,Y)->r(Y)"
+    testEntailment workerTest "b(X)~>!hs(X,Y)"
+    testEntailment workerTest "w(X)/\\hs(X,Y)~>r(Y)"
     testEntailment penguinTest "p->'F"

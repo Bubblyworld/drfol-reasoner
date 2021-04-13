@@ -62,9 +62,28 @@ declareCompound sort smap (Disjunction compl compr) =
 declareCompound sort smap (Negation comp) =
   mkNot =<< declareCompound sort smap comp
 
+-- mkTypicalityFunc is the monadic predicate used to represent typicality.
+mkTypicalityFunc :: Sort -> Z3 FuncDecl
+mkTypicalityFunc sort = do
+  boolSort <- mkBoolSort
+  funcSym <- mkStringSymbol "__typ__"
+  mkFuncDecl funcSym [sort] boolSort
+
+-- declareTypicality constructs a formula declaring that the variables in
+-- the given compound are typical. This is represented by a conjunction of
+-- monadic typicality atoms, one for each variable.
+declareTypicality :: Sort -> Map Label AST -> Expression -> Z3 AST
+declareTypicality sort smap expr =
+  do
+    typFn <- mkTypicalityFunc sort
+    typTerms <- let vars = (!) smap <$> exprVariables expr
+                 in mapM (mkApp typFn . wrap) vars
+    if null typTerms
+       then mkTrue
+       else mkAnd typTerms
+
 -- declareExpression constructs a universally closed z3 formula for the
--- given expression using the given z3 sort. Defeasible rules are converted
--- into their materialisations, i.e. classical counterparts.
+-- given expression using the given z3 sort.
 declareExpression :: Sort -> Map Label AST -> Expression -> Z3 AST
 declareExpression sort smap (Fact comp)               =
   do
@@ -85,10 +104,11 @@ declareExpression sort smap expr@(DefeasibleRule compl compr) =
   do
     cdecll <- declareCompound sort smap compl
     cdeclr <- declareCompound sort smap compr
+    tdecl <- declareTypicality sort smap expr
     apps <- mapM (toApp . (!) smap) $ exprVariables expr
     if null apps
        then mkImplies cdecll cdeclr
-       else mkForallConst [] apps =<< mkImplies cdecll cdeclr
+       else mkForallConst [] apps =<< flip mkImplies cdeclr =<< mkAnd [tdecl, cdecll]
 
   {-
      Since running
@@ -97,8 +117,7 @@ declareExpression sort smap expr@(DefeasibleRule compl compr) =
      -}
 
 -- classicallyEntails returns true if the given program entails the given
--- expression classically. Defeasible rules, both in the program and the
--- query, are first materialised.
+-- expression classically.
 classicallyEntails :: Program -> Expression -> IO Bool
 classicallyEntails program expr =
   do
@@ -111,31 +130,3 @@ classicallyEntails program expr =
     case res of
       Unsat -> return True -- prog ^ !expr is unsatisfiable iff prog => exprProgram
       _     -> return False
---
--- An example script to feel out the Z3 bindings.
-script :: Z3 String
-script = do
-  unSort <- mkStringSymbol "drfol" >>= mkUninterpretedSort
-  boolSort <- mkBoolSort
-  birdSym <- mkStringSymbol "bird"
-  flySym <- mkStringSymbol "fly"
-  bird <- mkFuncDecl birdSym [unSort] boolSort
-  fly <- mkFuncDecl flySym [unSort] boolSort
-  tweety <- mkFreshConst "Tweety" unSort
-  tommie <- mkFreshConst "Tommie" unSort
-
-  assert =<< mkApp bird [tweety]
-  assert =<< mkNot =<< mkApp fly [tommie]
-  assert =<< do
-    x <- mkFreshVar "x" unSort
-    x' <- toApp x
-    birdX <- mkApp bird [x]
-    flyX <- mkApp fly [x]
-    rule <- mkImplies birdX flyX
-    mkForallConst [] [x'] rule
-
-  model <- snd <$> getModel
-  case model of
-    Just m -> modelToString m
-    _      -> return "No model found."
-
