@@ -41,14 +41,14 @@ declareVariables sort =
 -- declareCompound constructs a non-universally closed z3 formula for the given
 -- compound using the given z3 sort.
 declareCompound :: Sort -> Map Label AST -> Compound -> Z3 AST
+declareCompound _ _ Top = mkTrue
+declareCompound _ _ Bot = mkFalse
 declareCompound sort smap (Atom (Label labelStr) terms) =
   do
     boolSort <- mkBoolSort
     funcSym <- mkStringSymbol labelStr
     funcDecl <- mkFuncDecl funcSym (sort <$ terms) boolSort
     mkApp funcDecl $ fmap ((!) smap . label) terms
-declareCompound sort smap (Negation comp) =
-  mkNot =<< declareCompound sort smap comp
 declareCompound sort smap (Conjunction compl compr) =
   do
     astl <- declareCompound sort smap compl
@@ -59,6 +59,8 @@ declareCompound sort smap (Disjunction compl compr) =
     astl <- declareCompound sort smap compl
     astr <- declareCompound sort smap compr
     mkOr [astl, astr]
+declareCompound sort smap (Negation comp) =
+  mkNot =<< declareCompound sort smap comp
 
 -- declareExpression constructs a universally closed z3 formula for the
 -- given expression using the given z3 sort. Defeasible rules are converted

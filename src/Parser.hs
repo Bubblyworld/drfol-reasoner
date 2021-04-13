@@ -28,6 +28,7 @@ termListTail = many $ string "," *> term
 compound :: CharParser st Compound
 compound = string "(" *> compound <* string ")"
        <|> ((atom <&> maybeApply) <*> compound')
+       <|> ((topbot <&> maybeApply) <*> compound')
        <|> ((negation <&> maybeApply) <*> compound')
   where
     maybeApply x = maybe x (\f -> f x)
@@ -37,8 +38,11 @@ compound' = (string "/\\" *> compound <&> Just . flip Conjunction)
         <|> (string "\\/" *> compound <&> Just . flip Disjunction)
         <|> return Nothing
 
+topbot :: CharParser st Compound
+topbot = string "'" *> (string "T" $> Top <|> string "F" $> Bot)
+
 atom :: CharParser st Compound
-atom = (many1 lower <&> Atom . Label) <*> termList
+atom = (many1 lower <&> Atom . Label) <*> (termList <|> return [])
 
 negation :: CharParser st Compound
 negation = string "!" *> compound <&> Negation

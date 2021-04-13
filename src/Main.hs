@@ -17,6 +17,11 @@ workerTest = "b(X)->w(X)\n\
 \b(X)~>r(X)\n\
 \w(X)/\\hs(X,Y)~>b(Y)"
 
+penguinTest :: String
+penguinTest = "p->b\n\
+\p->!f\n\
+\b~>f"
+
 testEntailment :: String -> String -> IO ()
 testEntailment progStr exprStr =
   do
@@ -35,3 +40,4 @@ main =
     testEntailment tweetyTest "f(tweety)"
     testEntailment workerTest "b(X)->!hs(X,Y)"
     testEntailment workerTest "w(X)/\\hs(X,Y)->r(Y)"
+    testEntailment penguinTest "p->'F"

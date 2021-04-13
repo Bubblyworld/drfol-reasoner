@@ -25,27 +25,34 @@ instance Functor GenTerm where
 type Term = GenTerm Label
 
 -- Compounds represent boolean combination of atoms.
-data GenCompound l t = Atom l [t]
-              | Negation (GenCompound l t)
-              | Conjunction (GenCompound l t) (GenCompound l t)
-              | Disjunction (GenCompound l t) (GenCompound l t)
+data GenCompound l t = Top | Bot
+                     | Atom l [t]
+                     | Negation (GenCompound l t)
+                     | Conjunction (GenCompound l t) (GenCompound l t)
+                     | Disjunction (GenCompound l t) (GenCompound l t)
 
 instance (Show l, Show t) => Show (GenCompound l t) where
-  show (Negation c)          = "!" ++ show c
+  show Top = "'T"
+  show Bot = "'F"
+  show (Negation c) = "!" ++ show c
   show (Conjunction cl cr) = "(" ++ show cl ++ "/\\" ++ show cr ++ ")"
   show (Disjunction cl cr) = "(" ++ show cl ++ "\\/" ++ show cr ++ ")"
-  show (Atom l ts)  = show l ++ "(" ++ joinStr ts ++ ")"
+  show (Atom l ts) = show l ++ "(" ++ joinStr ts ++ ")"
     where joinStr []     = ""
           joinStr [t]    = show t
           joinStr (t:ts) = show t ++ "," ++ joinStr ts
 
 instance Functor (GenCompound l) where
+  fmap f Top                 = Top
+  fmap f Bot                 = Bot
   fmap f (Atom l ts)         = Atom l (fmap f ts)
   fmap f (Negation c)        = Negation (fmap f c)
   fmap f (Conjunction cl cr) = Conjunction (fmap f cl) (fmap f cr)
   fmap f (Disjunction cl cr) = Disjunction (fmap f cl) (fmap f cr)
 
 instance Foldable (GenCompound l) where
+  foldMap f Top                 = mempty
+  foldMap f Bot                 = mempty
   foldMap f (Atom l ts)         = mconcat $ fmap f ts
   foldMap f (Negation c)        = foldMap f c
   foldMap f (Conjunction cl cr) = mappend (foldMap f cl) (foldMap f cr)
@@ -55,8 +62,8 @@ type Compound = GenCompound Label Term
 
 -- Expressions represent facts, rules and defeasible rules. Logically,
 data GenExpression c = Fact c
-                | ClassicalRule c c
-                | DefeasibleRule c c
+                     | ClassicalRule c c
+                     | DefeasibleRule c c
 
 instance (Show c) => Show (GenExpression c) where
   show (Fact c)               = show c
