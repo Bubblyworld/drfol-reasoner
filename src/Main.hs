@@ -52,3 +52,4 @@ main :: IO ()
 main =
   do
     testEntailment workerTest "w(X)/\\hs(X,Y)~>r(Y)"
+    testEntailment workerTest "w(andy)~>r(andy)"

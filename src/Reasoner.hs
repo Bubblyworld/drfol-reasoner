@@ -32,7 +32,7 @@ classicallyEntails prog expr =
   do
     res <- evalZ3 $ do
       unsort <- mkStringSymbol "drfol" >>= mkUninterpretedSort
-      smap <- declareTerms unsort prog
+      smap <- declareTerms unsort (expr : expressions prog)
       mapM_ (assert <=< declareExpression unsort smap) $ expressions prog
       assert =<< mkNot =<< declareExpression unsort smap expr
       check
@@ -45,7 +45,7 @@ classicallyEntails prog expr =
 rationallyEntails :: Program -> Expression -> IO Bool
 rationallyEntails prog expr@(Fact _) = classicallyEntails prog expr
 rationallyEntails prog expr@(ClassicalRule _ _) = classicallyEntails prog expr
-rationallyEntails prog (DefeasibleRule compl compr) =
+rationallyEntails prog expr@(DefeasibleRule compl compr) =
   do
     let cpos = Conjunction compl compr
         cneg = Conjunction compl (Negation compr)
@@ -105,30 +105,30 @@ isExceptional prog comp = classicallyEntails prog $ DefeasibleRule comp Bot
      -}
 
 -- declareTerms declares fresh constant and variable synbols for all of the
--- program's terms using the given z3 sort.
-declareTerms :: Sort -> Program -> Z3 (Map Label AST)
-declareTerms sort prog = do
-  consts <- declareConstants sort prog
-  vars <- declareVariables sort prog
+-- given expressions' terms using the given z3 sort.
+declareTerms :: Sort -> [Expression] -> Z3 (Map Label AST)
+declareTerms sort exprs = do
+  consts <- declareConstants sort exprs
+  vars <- declareVariables sort exprs
   return $ union consts vars
 
--- declareConstants declares fresh constant symbols for the given program.
-declareConstants :: Sort -> Program -> Z3 (Map Label AST)
+-- declareConstants declares fresh constant symbols for the given expressions.
+declareConstants :: Sort -> [Expression] -> Z3 (Map Label AST)
 declareConstants sort =
   let appendConst res label@(Label labelStr) =
         do
           newConst <- mkFreshConst labelStr sort
           return $ insert label newConst res
-   in foldM appendConst empty . constants
+   in foldM appendConst empty . constants . Program
 
--- declareVariables declares fresh variable symbols for the given program.
-declareVariables :: Sort -> Program -> Z3 (Map Label AST)
+-- declareVariables declares fresh variable symbols for the given expressions.
+declareVariables :: Sort -> [Expression] -> Z3 (Map Label AST)
 declareVariables sort =
   let appendVar res label@(Label labelStr) =
         do
           newVar <- mkFreshVar labelStr sort
           return $ insert label newVar res
-   in foldM appendVar empty . variables
+   in foldM appendVar empty . variables . Program
 
 -- declareCompound constructs a non-universally closed z3 formula for the given
 -- compound using the given z3 sort.
