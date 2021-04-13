@@ -130,6 +130,15 @@ validateSafety = mapM_ checkSafety . expressions
      Utilities for manipulating and extracting data from programs.
      -}
 
+-- materialise returns the materialisation of the given program, in which
+-- all defeasible rules A(x) ~> B(y) are replaced with their classical
+-- counterparts A(X) -> B(y).
+materialise :: Program -> Program
+materialise =
+  let _materialise (DefeasibleRule cl cr) = ClassicalRule cl cr
+      _materialise e                      = e
+   in fmap _materialise
+
 -- expressions returns the list of expressions in the given program.
 expressions :: Program -> [Expression]
 expressions (Program es) = es
@@ -147,9 +156,22 @@ label :: Term -> Label
 label (Variable l) = l
 label (Constant l) = l
 
--- variables returns the list of variable labels used in the given program.
+-- exprVariables returns the list of variables used in the given expression.
+exprVariables :: Expression -> [Label]
+exprVariables = rmdups . foldMap compVariables
+
+-- compVariables returns the list of variables used in the given compound.
+compVariables :: Compound -> [Label]
+compVariables =
+  let onlyvars t =
+        case t of
+          Variable l -> True
+          _          -> False
+   in rmdups . fmap label . filter onlyvars . foldMap wrap
+
+-- variables returns the list of variables used in the given program.
 variables :: Program -> [Label]
-variables =
+variables  =
   let onlyvars t =
         case t of
           Variable l -> True

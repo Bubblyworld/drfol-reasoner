@@ -1,11 +1,10 @@
-module Parser (parse) where
+module Parser (parseProgram, parseExpression) where
 
 import           Data.Functor                  (($>), (<$>), (<&>))
 import           Data.List.Extra               (cons)
 import           Language
 import           Text.Parsec.Char
-import           Text.ParserCombinators.Parsec hiding (parse)
-import qualified Text.ParserCombinators.Parsec as Parsec (parse)
+import           Text.ParserCombinators.Parsec
 
   {-
      Parser combinators for DRFOL programs and expressions.
@@ -57,5 +56,8 @@ expression' = (string "->" *> compound <&> Just . flip ClassicalRule)
 program :: CharParser st Program
 program = many (expression <* ((eof $> ' ') <|> endOfLine)) <&> Program
 
-parse :: String -> Either ParseError Program
-parse = Parsec.parse program "drfol"
+parseProgram :: String -> Either ParseError Program
+parseProgram = parse program "drfol"
+
+parseExpression :: String -> Either ParseError Expression
+parseExpression = parse expression "drfol"
