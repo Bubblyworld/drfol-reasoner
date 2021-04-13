@@ -6,6 +6,19 @@ import           Data.Map      hiding (filter, null)
 import           Language
 import           Z3.Monad
 
+-- Ranks of compounds are either integers, representing the level of typicality
+-- that the compound has with respect to some program, or infinity, which
+-- represents an impossibly atypical compound (i.e. hard constraint).
+data Rank = Rank Int | Infinity deriving (Eq)
+
+instance Show Rank where
+  show (Rank i) = show i
+  show Infinity = "∞"
+
+instance Ord Rank where
+  Rank i1 <= Rank i2 = i1 <= i2
+  _ <= Infinity      = True
+
   {-
      Functions for reasoning classically and/or defeasibly over a DRFOL
      program. Since the Z3 reasoner has side effects, all reasoning runs
@@ -31,10 +44,10 @@ classicallyEntails program expr =
 -- compounds to rank them according to typicality. The lower the rank, the
 -- more typical it is considered to be with respect to the given program. The
 -- result contains rankings for compounds that occur in the program as well.
-rankExpressions :: Program -> [Compound] -> IO (Map Compound Int)
+rankExpressions :: Program -> [Compound] -> IO (Map Compound Rank)
 rankExpressions = rankExpressions' 0
 
-rankExpressions' :: Int -> Program -> [Compound] -> IO (Map Compound Int)
+rankExpressions' :: Int -> Program -> [Compound] -> IO (Map Compound Rank)
 rankExpressions' _ (Program []) [] = return empty
 rankExpressions' i prog comps =
   do
@@ -50,9 +63,11 @@ rankExpressions' i prog comps =
               takeExpr (DefeasibleRule comp _) = exceptions ! comp
            in filter takeExpr $ expressions prog
 
-    base <- foldM (\m c -> return $ insert c i m) empty typicalComps
+    base <- foldM (\m c -> return $ insert c (Rank i) m) empty typicalComps
     if null typicalComps || null exceptionalComps
-       then return base -- TODO: mark remaining compounds infinite rank
+       then do
+         rest <- foldM (\m c -> return $ insert c Infinity m) empty exceptionalComps
+         return $ union base rest
        else do
          rest <- rankExpressions' (i + 1) (Program exceptionalExprs) exceptionalComps
          return $ union base rest

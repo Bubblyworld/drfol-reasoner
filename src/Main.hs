@@ -22,6 +22,10 @@ penguinTest = "p->b\n\
 \p->!f\n\
 \b~>f"
 
+hardTest :: String
+hardTest = "a(X)~>b(X)\n\
+\b(X)->'F"
+
 testEntailment :: String -> String -> IO ()
 testEntailment progStr exprStr =
   do
@@ -40,7 +44,5 @@ testEntailment progStr exprStr =
 main :: IO ()
 main =
   do
-    testEntailment tweetyTest "f(tweety)"
-    testEntailment workerTest "b(X)~>!hs(X,Y)"
-    testEntailment workerTest "w(X)/\\hs(X,Y)~>r(Y)"
-    testEntailment penguinTest "p->'F"
+    testEntailment hardTest "a(X)~>'F"
+    testEntailment hardTest "a(X)->'F"
