@@ -9,7 +9,8 @@ import           Z3.Monad
 
 tweetyTest :: String
 tweetyTest = "b(X)~>f(X)\n\
-\b(tweety)"
+\b(tweety)\n\
+\!f(tweety)"
 
 workerTest :: String
 workerTest = "b(X)->w(X)\n\
@@ -51,5 +52,4 @@ testEntailment progStr exprStr =
 main :: IO ()
 main =
   do
-    testEntailment workerTest "w(X)/\\hs(X,Y)~>r(Y)"
-    testEntailment workerTest "w(andy)~>r(andy)"
+    testEntailment tweetyTest "b(X)~>'F"

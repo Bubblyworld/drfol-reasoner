@@ -16,8 +16,9 @@ instance Show Rank where
   show Infinity = "∞"
 
 instance Ord Rank where
-  Rank i1 <= Rank i2 = i1 <= i2
-  _ <= Infinity      = True
+  Rank i1 <= Rank i2  = i1 <= i2
+  Rank i1 <= Infinity = True
+  Infinity <= Rank i2 = False
 
   {-
      Functions for reasoning classically and/or defeasibly over a DRFOL
@@ -50,7 +51,10 @@ rationallyEntails prog expr@(DefeasibleRule compl compr) =
     let cpos = Conjunction compl compr
         cneg = Conjunction compl (Negation compr)
     ranks <- rankExpressions prog [cpos, cneg]
-    return $ (ranks ! cpos == Infinity) || (ranks ! cpos) < (ranks ! cneg)
+
+    let bothInfinity = (ranks ! cpos == Infinity) && (ranks ! cneg == Infinity)
+        posIsSmaller = (ranks ! cpos) < (ranks ! cneg)
+     in return $ bothInfinity || posIsSmaller
 
 -- rankExpressions runs the rational closure ranking algorithm on the given
 -- compounds to rank them according to typicality. The lower the rank, the
@@ -68,15 +72,20 @@ rankExpressions' i prog comps =
 
     exceptions <- mapExceptional prog comps'
     let typicalComps = filter (not . (!) exceptions) comps'
-    let exceptionalComps = filter (exceptions !) comps'
-    let exceptionalExprs =
+        exceptionalComps = filter (exceptions !) comps'
+        exceptionalExprs =
           let takeExpr (Fact _)                = True
               takeExpr (ClassicalRule _ _)     = True
               takeExpr (DefeasibleRule comp _) = exceptions ! comp
            in filter takeExpr $ expressions prog
 
     base <- foldM (\m c -> return $ insert c (Rank i) m) empty typicalComps
-    if null typicalComps || null exceptionalComps
+    let restProg = Program exceptionalExprs
+        restComps = exceptionalComps
+
+    -- if the (prog, expr) arguments have changed, then we need to recursively
+    -- rank the compounds. if not, then we've found the rank-infinity ones.
+    if restProg == prog && restComps == comps
        then do
          rest <- foldM (\m c -> return $ insert c Infinity m) empty exceptionalComps
          return $ union base rest

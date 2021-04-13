@@ -168,6 +168,9 @@ instance Functor GenProgram where
 instance Foldable GenProgram where
   foldMap f (Program es) = foldMap f es
 
+instance (Eq e) => Eq (GenProgram e) where
+  Program es1 == Program es2 = es1 == es2
+
 type Program = GenProgram Expression
 
 -- ValidationError represents some reason a program is invalid, such as having
