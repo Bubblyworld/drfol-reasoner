@@ -19,21 +19,24 @@ workerTest = "b(X)->w(X)\n\
 \w(X)/\\hs(X,Y)~>b(Y)"
 
 penguinTest :: String
-penguinTest = "p->b\n\
-\p->!f\n\
-\b~>f"
+penguinTest = "p(X) -> b(X)\n\
+\p(X) ~> !f(X)\n\
+\b(X) ~> f(X)"
 
 hardTest :: String
 hardTest = "a(X)~>b(X)\n\
 \b(X)->'F"
+
+removeSpaces :: String -> String
+removeSpaces = filter (/= ' ')
 
 testEntailment :: String -> String -> IO ()
 testEntailment progStr exprStr =
   do
     let parsed =
           do
-            prog <- parseProgram progStr
-            expr <- parseExpression exprStr
+            prog <- parseProgram  $ removeSpaces progStr
+            expr <- parseExpression $ removeSpaces exprStr
             return (prog, expr)
     case parsed of
       Left err           -> putStrLn $ "Parser error: " ++ show err
@@ -41,9 +44,9 @@ testEntailment progStr exprStr =
         do
           putStrLn "{"
           putStrLn "  Program:"
-          print prog
+          putStrLn progStr
           putStrLn "  Expression:"
-          print expr
+          putStrLn exprStr
 
           entailed <- rationallyEntails prog expr
           putStrLn $ "\n  In Rational Closure: " ++ show entailed
@@ -52,4 +55,5 @@ testEntailment progStr exprStr =
 main :: IO ()
 main =
   do
-    testEntailment tweetyTest "b(X)~>'F"
+    testEntailment penguinTest "b(X) ~> !p(X)"
+    --testEntailment tweetyTest "b(X)~>'F"

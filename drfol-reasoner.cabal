@@ -19,3 +19,10 @@ executable drfol-reasoner
   other-modules:       Parser, Language, Reasoner
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5, parsec >= 3.1, extra, containers, data-ordlist, z3
+  
+executable drfol-reasoner-server
+  hs-source-dirs:      src
+  main-is:             Server.hs
+  other-modules:       Parser, Language, Reasoner
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5, parsec >= 3.1, extra, containers, data-ordlist, z3, snap-core, snap-server
